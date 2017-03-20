@@ -12,7 +12,7 @@ namespace SModule.Models
         public List<String> tags { get; set; }
         public double price { get; set; }
         public List<String> trackedPlaces { get; set; }
-        public List<TrackedUpdate> updates { get; set; } = new List<TrackedUpdate>();
+        public Dictionary<String,TrackedUpdate> updates { get; set; } = new Dictionary<String, TrackedUpdate>();
     }
     public class ProductTrackContainer
     {
@@ -25,5 +25,7 @@ namespace SModule.Models
         public String url { get; set; }
         public String location { get; set; }
         public String description { get; set; }
+        public DateTime lastUpdate { get; set; }
+        public String id { get; set; }
     }
 }
