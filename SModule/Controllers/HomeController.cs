@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Dynamic;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Timers;
 using System.Web;
@@ -20,6 +21,14 @@ namespace SModule.Controllers
 {
     public class HomeController : Controller
     {
+        public String index()
+        {
+            StringBuilder jsonStr = new StringBuilder("Currently crawling page:");
+            jsonStr.AppendLine(JsonConvert.SerializeObject(PageTimer.getAllCrawlingPage()));
+            jsonStr.AppendLine("To add crawling page : call /home/crawlface?pageid={pageid}" );
+            jsonStr.AppendLine("To stop crawling page : call /home/StopCrawl?pageid={pageid}");
+            return jsonStr.ToString();
+        }
         public async System.Threading.Tasks.Task<ActionResult> FaceParse()
         {
             var fb = FacebookClientProvider.getFacebookClient();
@@ -101,6 +110,7 @@ namespace SModule.Controllers
                         update.price = Double.Parse(parseObject.price);
                         update.lastUpdate = DateTime.Now;
                         update.id = parseObject.id;
+                        update.url = String.Format("http://www.facebook.com/{0}/posts/{1}", update.id.Split('_').FirstOrDefault(), update.id.Split('-').LastOrDefault());
                         PushResponse response = await client.PushAsync("products/tracking/" + trackedProducts.FirstOrDefault(x => x.Value == trackProduct).Key + "/updates", update);
                     }
                 }
