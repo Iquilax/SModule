@@ -56,13 +56,13 @@ namespace SModule.Controllers
 
             return Json(resultData, JsonRequestBehavior.AllowGet);
         }
-        public ActionResult CrawlFace(String pageId)
+        public ActionResult CrawlFace(String pageId, int crawlInterval)
         {
             ViewBag.Title = "Crawling ...";
             var timer = new System.Threading.Timer((e) =>
             {
                 crawlFaceOneTime(pageId);
-            }, null, 0, 60 * 1000);
+            }, null, 0, crawlInterval == 0 ? 60 * 1000 : crawlInterval);
             PageTimer.setTimer(timer, pageId);
             return Json(PageTimer.getAllCrawlingPage(), JsonRequestBehavior.AllowGet);
         }
@@ -97,7 +97,15 @@ namespace SModule.Controllers
                 parseObject.product = splitedString[0].Split('₫').FirstOrDefault();
                 if (splitedString.Count > 1)
                 {
-                    parseObject.price = splitedString[1].Split('-').FirstOrDefault().Remove(0, 1);
+                    parseObject.price = splitedString[1].Split('-').FirstOrDefault();
+                    if (parseObject.price == "FREE")
+                    {
+                        parseObject.price = "0";
+                    }
+                    else if (parseObject.price.Trim().Count() > 0)
+                    {
+                        parseObject.price = parseObject.price.Remove(0, 1);
+                    }
                     parseObject.location = splitedString[1].Split('-').LastOrDefault();
                 }
                 parseObject.id = rawPost.id;
