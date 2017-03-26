@@ -32,5 +32,6 @@ namespace SModule.Models
         public String description { get; set; }
         public DateTime lastUpdate { get; set; }
         public String id { get; set; }
+        public String fullPicture { get; set; }
     }
 }

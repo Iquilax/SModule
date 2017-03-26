@@ -21,6 +21,11 @@ namespace SModule.Utils
             }
             return singleton;
         }
+        public static Boolean checkMatchRequirement(TrackedAttempt trackAttempt, TrackedUpdate trackUpdate)
+        {
+            Boolean result = trackUpdate.price <= trackAttempt.price;
+            return result;
+        }
         public AndroidFCMPushNotificationStatus SendNotification(string deviceId, string message)
         {
             AndroidFCMPushNotificationStatus result = new AndroidFCMPushNotificationStatus();

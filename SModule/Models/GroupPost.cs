@@ -14,7 +14,12 @@ namespace SModule.Models
     {
         public String id { get; set; }
         public String message { get; set; }
+        [JsonProperty("updated_time")]
         public String updatedTime { get; set; }
+        [JsonProperty("full_picture")]
+        public String fullPicture { get; set; }
+        [JsonProperty("permalink_url")]
+        public String permalinkUrl { get; set; }
     }
     public class PostDetailParsed
     {
@@ -23,6 +28,9 @@ namespace SModule.Models
         public String location { get; set; }
         public String updatedTime { get; set; }
         public String price { get; set; }
+        public String fullPicture { get; set; }
+        public String permalinkUrl { get; set; }
+        public String description { get; set; }
 
     }
 }

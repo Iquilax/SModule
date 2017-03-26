@@ -93,7 +93,7 @@ namespace SModule.Controllers
                 IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
                 var fb = FacebookClientProvider.getFacebookClient();
                 dynamic parameters = new ExpandoObject();
-                Facebook.JsonObject fbResult = fb.Get(pageId + "/feed/", parameters);
+                Facebook.JsonObject fbResult = fb.Get(pageId + "/feed?fields=full_picture,permalink_url,message,id,place,created_time,updated_time", parameters);
                 List<PostDetailRaw> groupPosts = new List<PostDetailRaw>();
                 PostDetailRaw raw = new PostDetailRaw();
                 groupPosts = JsonConvert.DeserializeObject<List<PostDetailRaw>>(fbResult["data"].ToString());
@@ -121,18 +121,28 @@ namespace SModule.Controllers
                             parseObject.price = parseObject.price.Remove(0, 1);
                         }
                         parseObject.location = splitedString[1].Split('-').LastOrDefault();
+                        parseObject.fullPicture = rawPost.fullPicture;
                     }
                     parseObject.id = rawPost.id;
                     foreach (ProductTrack trackProduct in trackedProducts.Values)
                     {
                         if (parseObject.product.ToLower().Replace(" ", "").Contains(trackProduct.title.ToLower().Replace(" ", "")) && trackProduct.updates.Values.Where(a => a.id == parseObject.id).Count() == 0)
                         {
+                            
                             TrackedUpdate update = new TrackedUpdate();
                             update.trackedPlaces = "FB-" + pageId;
                             update.price = Double.Parse(parseObject.price);
                             update.lastUpdate = DateTime.Now;
                             update.id = parseObject.id;
+                            update.fullPicture = parseObject.fullPicture;
                             update.url = String.Format("http://www.facebook.com/{0}/posts/{1}", update.id.Split('_').FirstOrDefault(), update.id.Split('_').LastOrDefault());
+                            foreach (var trackedAttempt in trackProduct.trackedAttempts)
+                            {
+                                if (SUtils.checkMatchRequirement(trackedAttempt, update))
+                                {
+                                    SUtils.getInstance().SendNotification(trackedAttempt.id, "Your tracked matchhh !!!");
+                                }
+                            }
                             PushResponse response = await client.PushAsync("products/" + trackedProducts.FirstOrDefault(x => x.Value == trackProduct).Key + "/updates", update);
                         }
                     }
