@@ -10,9 +10,14 @@ namespace SModule.Models
         public String title { get; set; }
         public String categoryId { get; set; }
         public List<String> tags { get; set; }
+        public List<TrackedAttempt> trackedAttempts { get; set; }
+        public Dictionary<String,TrackedUpdate> updates { get; set; } = new Dictionary<String, TrackedUpdate>();
+    }
+    public class TrackedAttempt
+    {
+        public String id { get; set; }
         public double price { get; set; }
         public List<String> trackedPlaces { get; set; }
-        public Dictionary<String,TrackedUpdate> updates { get; set; } = new Dictionary<String, TrackedUpdate>();
     }
     public class ProductTrackContainer
     {

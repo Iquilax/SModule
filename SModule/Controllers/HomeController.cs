@@ -6,11 +6,15 @@ using FireSharp.Response;
 using Newtonsoft.Json;
 using SModule.Models;
 using SModule.Providers;
+using SModule.Utils;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Diagnostics;
 using System.Dynamic;
+using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading;
 using System.Timers;
@@ -25,36 +29,44 @@ namespace SModule.Controllers
         {
             StringBuilder jsonStr = new StringBuilder("Currently crawling page:");
             jsonStr.AppendLine(JsonConvert.SerializeObject(PageTimer.getAllCrawlingPage()));
-            jsonStr.AppendLine("To add crawling page : call /home/crawlface?pageid={pageid}" );
+            jsonStr.AppendLine("To add crawling page : call /home/crawlface?pageid={pageid}");
             jsonStr.AppendLine("To stop crawling page : call /home/StopCrawl?pageid={pageid}");
             return jsonStr.ToString();
         }
         public async System.Threading.Tasks.Task<ActionResult> FaceParse()
         {
-            var fb = FacebookClientProvider.getFacebookClient();
-            dynamic parameters = new ExpandoObject();
-            Facebook.JsonObject fbResult = fb.Get("841457799229902/feed/", parameters);
-            List<PostDetailRaw> groupPosts = new List<PostDetailRaw>();
-            PostDetailRaw raw = new PostDetailRaw();
-            groupPosts = JsonConvert.DeserializeObject<List<PostDetailRaw>>(fbResult["data"].ToString());
-            List<PostDetailParsed> resultData = new List<PostDetailParsed>();
-            Dictionary<String, ProductTrack> trackedProducts = await getFirebase();
-            foreach (var rawPost in groupPosts)
+            try
             {
-                var parseObject = new PostDetailParsed();
-                String msg = rawPost.message;
-                List<String> splitedString = msg.Split('\n').ToList();
-                parseObject.product = splitedString[0].Split('₫').FirstOrDefault();
-                if (splitedString.Count > 1)
+                var fb = FacebookClientProvider.getFacebookClient();
+                dynamic parameters = new ExpandoObject();
+                Facebook.JsonObject fbResult = fb.Get("841457799229902/feed/", parameters);
+                List<PostDetailRaw> groupPosts = new List<PostDetailRaw>();
+                PostDetailRaw raw = new PostDetailRaw();
+                groupPosts = JsonConvert.DeserializeObject<List<PostDetailRaw>>(fbResult["data"].ToString());
+                List<PostDetailParsed> resultData = new List<PostDetailParsed>();
+                Dictionary<String, ProductTrack> trackedProducts = await getFirebase();
+                foreach (var rawPost in groupPosts)
                 {
-                    parseObject.price = splitedString[1].Split('-').FirstOrDefault();
-                    parseObject.location = splitedString[1].Split('-').LastOrDefault();
+                    var parseObject = new PostDetailParsed();
+                    String msg = rawPost.message;
+                    List<String> splitedString = msg.Split('\n').ToList();
+                    parseObject.product = splitedString[0].Split('₫').FirstOrDefault();
+                    if (splitedString.Count > 1)
+                    {
+                        parseObject.price = splitedString[1].Split('-').FirstOrDefault();
+                        parseObject.location = splitedString[1].Split('-').LastOrDefault();
+                    }
+                    parseObject.id = rawPost.id;
+                    resultData.Add(parseObject);
+                    return Json(resultData, JsonRequestBehavior.AllowGet);
                 }
-                parseObject.id = rawPost.id;
-                resultData.Add(parseObject);
             }
-
-            return Json(resultData, JsonRequestBehavior.AllowGet);
+            catch (Exception)
+            {
+                //Ignore parse Exception
+                Trace.TraceError("Parse fail at : ");
+            }
+            return null;
         }
         public ActionResult CrawlFace(String pageId, int crawlInterval)
         {
@@ -76,53 +88,60 @@ namespace SModule.Controllers
 
         private async void crawlFaceOneTime(String pageId)
         {
-            IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
-            var fb = FacebookClientProvider.getFacebookClient();
-            dynamic parameters = new ExpandoObject();
-            Facebook.JsonObject fbResult = fb.Get(pageId + "/feed/", parameters);
-            List<PostDetailRaw> groupPosts = new List<PostDetailRaw>();
-            PostDetailRaw raw = new PostDetailRaw();
-            groupPosts = JsonConvert.DeserializeObject<List<PostDetailRaw>>(fbResult["data"].ToString());
-            List<PostDetailParsed> resultData = new List<PostDetailParsed>();
-            Dictionary<String, ProductTrack> trackedProducts = await getFirebase();
-            foreach (var rawPost in groupPosts)
+            try
             {
-                var parseObject = new PostDetailParsed();
-                String msg = rawPost.message;
-                if (msg == null)
+                IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
+                var fb = FacebookClientProvider.getFacebookClient();
+                dynamic parameters = new ExpandoObject();
+                Facebook.JsonObject fbResult = fb.Get(pageId + "/feed/", parameters);
+                List<PostDetailRaw> groupPosts = new List<PostDetailRaw>();
+                PostDetailRaw raw = new PostDetailRaw();
+                groupPosts = JsonConvert.DeserializeObject<List<PostDetailRaw>>(fbResult["data"].ToString());
+                List<PostDetailParsed> resultData = new List<PostDetailParsed>();
+                Dictionary<String, ProductTrack> trackedProducts = await getFirebase();
+                foreach (var rawPost in groupPosts)
                 {
-                    continue;
-                }
-                List<String> splitedString = msg.Split('\n').ToList();
-                parseObject.product = splitedString[0].Split('₫').FirstOrDefault();
-                if (splitedString.Count > 1)
-                {
-                    parseObject.price = splitedString[1].Split('-').FirstOrDefault();
-                    if (parseObject.price == "FREE")
+                    var parseObject = new PostDetailParsed();
+                    String msg = rawPost.message;
+                    if (msg == null)
                     {
-                        parseObject.price = "0";
+                        continue;
                     }
-                    else if (parseObject.price.Trim().Count() > 0)
+                    List<String> splitedString = msg.Split('\n').ToList();
+                    parseObject.product = splitedString[0].Split('₫').FirstOrDefault();
+                    if (splitedString.Count > 1)
                     {
-                        parseObject.price = parseObject.price.Remove(0, 1);
+                        parseObject.price = splitedString[1].Split('-').FirstOrDefault();
+                        if (parseObject.price == "FREE")
+                        {
+                            parseObject.price = "0";
+                        }
+                        else if (parseObject.price.Trim().Count() > 0)
+                        {
+                            parseObject.price = parseObject.price.Remove(0, 1);
+                        }
+                        parseObject.location = splitedString[1].Split('-').LastOrDefault();
                     }
-                    parseObject.location = splitedString[1].Split('-').LastOrDefault();
-                }
-                parseObject.id = rawPost.id;
-                foreach (ProductTrack trackProduct in trackedProducts.Values)
-                {
-                    if (parseObject.product.ToLower().Replace(" ","").Contains(trackProduct.title.ToLower().Replace(" ","")) && trackProduct.updates.Values.Where(a => a.id == parseObject.id).Count() == 0)
+                    parseObject.id = rawPost.id;
+                    foreach (ProductTrack trackProduct in trackedProducts.Values)
                     {
-                        TrackedUpdate update = new TrackedUpdate();
-                        update.trackedPlaces = "FB-"+ pageId;
-                        update.price = Double.Parse(parseObject.price);
-                        update.lastUpdate = DateTime.Now;
-                        update.id = parseObject.id;
-                        update.url = String.Format("http://www.facebook.com/{0}/posts/{1}", update.id.Split('_').FirstOrDefault(), update.id.Split('-').LastOrDefault());
-                        PushResponse response = await client.PushAsync("products/tracking/" + trackedProducts.FirstOrDefault(x => x.Value == trackProduct).Key + "/updates", update);
+                        if (parseObject.product.ToLower().Replace(" ", "").Contains(trackProduct.title.ToLower().Replace(" ", "")) && trackProduct.updates.Values.Where(a => a.id == parseObject.id).Count() == 0)
+                        {
+                            TrackedUpdate update = new TrackedUpdate();
+                            update.trackedPlaces = "FB-" + pageId;
+                            update.price = Double.Parse(parseObject.price);
+                            update.lastUpdate = DateTime.Now;
+                            update.id = parseObject.id;
+                            update.url = String.Format("http://www.facebook.com/{0}/posts/{1}", update.id.Split('_').FirstOrDefault(), update.id.Split('_').LastOrDefault());
+                            PushResponse response = await client.PushAsync("products/" + trackedProducts.FirstOrDefault(x => x.Value == trackProduct).Key + "/updates", update);
+                        }
                     }
+                    resultData.Add(parseObject);
                 }
-                resultData.Add(parseObject);
+            }
+            catch (Exception)
+            {
+                Trace.TraceError("Parse failed at:" + DateTime.Now);
             }
         }
         public String resultData()
@@ -158,38 +177,48 @@ namespace SModule.Controllers
             IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
             var todo = new ProductTrack();
             todo.title = title;
-            todo.price = 160000000;
+            todo.trackedAttempts = new List<TrackedAttempt>();
+            TrackedAttempt trackAttempt = new TrackedAttempt();
+            trackAttempt.id = "DEVICE-UNIQUE-ID";
+            trackAttempt.price = 1600000;
+            todo.trackedAttempts.Add(trackAttempt);
             todo.tags = new List<string> { "apple", "iphone", "smartphone" };
-            todo.trackedPlaces = new List<string> { "FB-CHOTAINGHE", "FB-D2Q", "CHOTOT.VN" };
-            PushResponse response = await client.PushAsync("products/tracking", todo);
+            trackAttempt.trackedPlaces = new List<string> { "FB-CHOTAINGHE", "FB-D2Q", "CHOTOT.VN" };
+            PushResponse response = await client.PushAsync("products", todo);
             return response.Body;
         }
         public async System.Threading.Tasks.Task<Dictionary<String, ProductTrack>> getFirebase()
         {
             IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
             var todo = new ProductTrack();
-            FirebaseResponse response = await client.GetAsync("products/tracking");
-            Dictionary<String,ProductTrack> dicResult = response.ResultAs<Dictionary<String, ProductTrack>>();
+            FirebaseResponse response = await client.GetAsync("products");
+            Dictionary<String, ProductTrack> dicResult = response.ResultAs<Dictionary<String, ProductTrack>>();
             return dicResult;
         }
         public async System.Threading.Tasks.Task<String> getRaw()
         {
             IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
             var todo = new ProductTrack();
-            FirebaseResponse response = await client.GetAsync("products/tracking");
+            FirebaseResponse response = await client.GetAsync("products");
             ProductTrackContainer trackedProducts = response.ResultAs<ProductTrackContainer>();
             return response.Body;
         }
-        public async System.Threading.Tasks.Task<String> setFirebase()
+        public ActionResult sendNotify(string receiverId, string message)
         {
-            IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
-            var todo = new ProductTrack();
-            todo.title = "Iphone6";
-            todo.price = 160000000;
-            todo.tags = new List<string> { "apple", "iphone", "smartphone" };
-            todo.trackedPlaces = new List<string> { "FB-CHOTAINGHE", "FB-D2Q", "CHOTOT.VN" };
-            SetResponse response = await client.SetAsync("products/tracking", todo);
-            return response.Body;
+            var result = SUtils.getInstance().SendNotification(@"e-8_lOed5NM:APA91bHrKdqQjqM0VorVAs35V1Tp0Xxw-t05oOeAQXjiD5HSnTgx_10OUdw5RB3r4FApwKXwU_oHc_gEt7c9PijkFf3NZkg6ve9GIrYkhDDWDeNvsWOPWtoY3XSSB9yzxJ9FdMBHdPtn", message);
+            return Json(result.Response, JsonRequestBehavior.AllowGet);
         }
+        //public async System.Threading.Tasks.Task<String> setFirebase()
+        //{
+        //    IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
+        //    var todo = new ProductTrack();
+        //    todo.title = "Iphone6";
+        //    //todo.price = 160000000;
+        //    todo.tags = new List<string> { "apple", "iphone", "smartphone" };
+        //    todo.trackedPlaces = new List<string> { "FB-CHOTAINGHE", "FB-D2Q", "CHOTOT.VN" };
+        //    SetResponse response = await client.SetAsync("products", todo);
+        //    return response.Body;
+        //}
+       
     }
 }
