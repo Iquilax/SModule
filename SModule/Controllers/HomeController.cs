@@ -32,42 +32,7 @@ namespace SModule.Controllers
             jsonStr.AppendLine("To add crawling page : call /home/crawlface?pageid={pageid}");
             jsonStr.AppendLine("To stop crawling page : call /home/StopCrawl?pageid={pageid}");
             return jsonStr.ToString();
-        }
-        public async System.Threading.Tasks.Task<ActionResult> FaceParse()
-        {
-            try
-            {
-                var fb = FacebookClientProvider.getFacebookClient();
-                dynamic parameters = new ExpandoObject();
-                Facebook.JsonObject fbResult = fb.Get("841457799229902/feed/", parameters);
-                List<PostDetailRaw> groupPosts = new List<PostDetailRaw>();
-                PostDetailRaw raw = new PostDetailRaw();
-                groupPosts = JsonConvert.DeserializeObject<List<PostDetailRaw>>(fbResult["data"].ToString());
-                List<PostDetailParsed> resultData = new List<PostDetailParsed>();
-                Dictionary<String, ProductTrack> trackedProducts = await getFirebase();
-                foreach (var rawPost in groupPosts)
-                {
-                    var parseObject = new PostDetailParsed();
-                    String msg = rawPost.message;
-                    List<String> splitedString = msg.Split('\n').ToList();
-                    parseObject.product = splitedString[0].Split('₫').FirstOrDefault();
-                    if (splitedString.Count > 1)
-                    {
-                        parseObject.price = splitedString[1].Split('-').FirstOrDefault();
-                        parseObject.location = splitedString[1].Split('-').LastOrDefault();
-                    }
-                    parseObject.id = rawPost.id;
-                    resultData.Add(parseObject);
-                    return Json(resultData, JsonRequestBehavior.AllowGet);
-                }
-            }
-            catch (Exception)
-            {
-                //Ignore parse Exception
-                Trace.TraceError("Parse fail at : ");
-            }
-            return null;
-        }
+        }       
         public ActionResult CrawlFace(String pageId, int crawlInterval)
         {
             ViewBag.Title = "Crawling ...";
@@ -90,7 +55,7 @@ namespace SModule.Controllers
         {
             try
             {
-                IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
+                
                 var fb = FacebookClientProvider.getFacebookClient();
                 dynamic parameters = new ExpandoObject();
                 Facebook.JsonObject fbResult = fb.Get(pageId + "/feed?fields=full_picture,permalink_url,message,id,place,created_time,updated_time", parameters);
@@ -98,7 +63,7 @@ namespace SModule.Controllers
                 PostDetailRaw raw = new PostDetailRaw();
                 groupPosts = JsonConvert.DeserializeObject<List<PostDetailRaw>>(fbResult["data"].ToString());
                 List<PostDetailParsed> resultData = new List<PostDetailParsed>();
-                Dictionary<String, ProductTrack> trackedProducts = await getFirebase();
+                Dictionary<String, ProductTrack> trackedProducts = await SUtils.getInstance().getFirebase();
                 foreach (var rawPost in groupPosts)
                 {
                     var parseObject = new PostDetailParsed();
@@ -124,28 +89,8 @@ namespace SModule.Controllers
                         parseObject.fullPicture = rawPost.fullPicture;
                     }
                     parseObject.id = rawPost.id;
-                    foreach (ProductTrack trackProduct in trackedProducts.Values)
-                    {
-                        if (parseObject.product.ToLower().Replace(" ", "").Contains(trackProduct.title.ToLower().Replace(" ", "")) && trackProduct.updates.Values.Where(a => a.id == parseObject.id).Count() == 0)
-                        {
-                            
-                            TrackedUpdate update = new TrackedUpdate();
-                            update.trackedPlaces = "FB-" + pageId;
-                            update.price = Double.Parse(parseObject.price);
-                            update.lastUpdate = DateTime.Now;
-                            update.id = parseObject.id;
-                            update.fullPicture = parseObject.fullPicture;
-                            update.url = String.Format("http://www.facebook.com/{0}/posts/{1}", update.id.Split('_').FirstOrDefault(), update.id.Split('_').LastOrDefault());
-                            foreach (var trackedAttempt in trackProduct.trackedAttempts)
-                            {
-                                if (SUtils.checkMatchRequirement(trackedAttempt, update))
-                                {
-                                    SUtils.getInstance().SendNotification(trackedAttempt.id, "Your tracked matchhh !!!");
-                                }
-                            }
-                            PushResponse response = await client.PushAsync("products/" + trackedProducts.FirstOrDefault(x => x.Value == trackProduct).Key + "/updates", update);
-                        }
-                    }
+                    parseObject.description = splitedString.FirstOrDefault();
+                    SUtils.getInstance().mapParseObject2FirebaseObject(parseObject, "FB-" + pageId);
                     resultData.Add(parseObject);
                 }
             }
@@ -154,69 +99,41 @@ namespace SModule.Controllers
                 Trace.TraceError("Parse failed at:" + DateTime.Now);
             }
         }
-        public String resultData()
-        {
-            var fb = new FacebookClient();
-            dynamic result = fb.Get("oauth/access_token", new
-            {
-                client_id = "1793161387589434",
-                client_secret = "c09476d259d285c548bcf6dee1950a66",
-                grant_type = "client_credentials"
-            });
-            fb.AccessToken = result.access_token;
-            dynamic parameters = new ExpandoObject();
-            Facebook.JsonObject fbResult = fb.Get("841457799229902/feed/", parameters);
-            return fbResult["data"].ToString();
-        }
-        public String result()
-        {
-            var fb = new FacebookClient();
-            dynamic result = fb.Get("oauth/access_token", new
-            {
-                client_id = "1793161387589434",
-                client_secret = "c09476d259d285c548bcf6dee1950a66",
-                grant_type = "client_credentials"
-            });
-            fb.AccessToken = result.access_token;
-            dynamic parameters = new ExpandoObject();
-            Facebook.JsonObject fbResult = fb.Get("841457799229902/feed/", parameters);
-            return fbResult.ToString();
-        }
         public async System.Threading.Tasks.Task<String> testFirebase(String title)
         {
             IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
             var todo = new ProductTrack();
             todo.title = title;
-            todo.trackedAttempts = new List<TrackedAttempt>();
+            todo.trackedAttempts = new Dictionary<string, TrackedAttempt>();
             TrackedAttempt trackAttempt = new TrackedAttempt();
             trackAttempt.id = "DEVICE-UNIQUE-ID";
             trackAttempt.price = 1600000;
-            todo.trackedAttempts.Add(trackAttempt);
+            todo.trackedAttempts.Add(DateTime.Now.ToShortDateString(), trackAttempt);
             todo.tags = new List<string> { "apple", "iphone", "smartphone" };
             trackAttempt.trackedPlaces = new List<string> { "FB-CHOTAINGHE", "FB-D2Q", "CHOTOT.VN" };
             PushResponse response = await client.PushAsync("products", todo);
             return response.Body;
         }
-        public async System.Threading.Tasks.Task<Dictionary<String, ProductTrack>> getFirebase()
+        public async System.Threading.Tasks.Task<String> generateDB(String title)
         {
             IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
-            var todo = new ProductTrack();
-            FirebaseResponse response = await client.GetAsync("products");
-            Dictionary<String, ProductTrack> dicResult = response.ResultAs<Dictionary<String, ProductTrack>>();
-            return dicResult;
-        }
-        public async System.Threading.Tasks.Task<String> getRaw()
-        {
-            IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
-            var todo = new ProductTrack();
-            FirebaseResponse response = await client.GetAsync("products");
-            ProductTrackContainer trackedProducts = response.ResultAs<ProductTrackContainer>();
+            Dictionary<String, String> data = new Dictionary<string, string>();
+            data.Add("FB-193618214469008", "Phones & Gadgets");
+            data.Add("FB-841457799229902", "Chợ tai nghe 2hand");
+            data.Add("FB-596113770526429", "GEARVN");
+            data.Add("FB-351509411541454", "Chợ máy ảnh");
+            SetResponse response = await client.SetAsync("locations", data);
             return response.Body;
         }
         public ActionResult sendNotify(string receiverId, string message)
         {
             var result = SUtils.getInstance().SendNotification(@"e-8_lOed5NM:APA91bHrKdqQjqM0VorVAs35V1Tp0Xxw-t05oOeAQXjiD5HSnTgx_10OUdw5RB3r4FApwKXwU_oHc_gEt7c9PijkFf3NZkg6ve9GIrYkhDDWDeNvsWOPWtoY3XSSB9yzxJ9FdMBHdPtn", message);
             return Json(result.Response, JsonRequestBehavior.AllowGet);
+        }
+        public ActionResult initalCrawl()
+        {
+            CrawlFace("193618214469008", 5000);
+            return Redirect("/");
         }
         //public async System.Threading.Tasks.Task<String> setFirebase()
         //{

@@ -1,4 +1,6 @@
-﻿using SModule.Models;
+﻿using FireSharp.Interfaces;
+using FireSharp.Response;
+using SModule.Models;
 using SModule.Providers;
 using System;
 using System.Collections.Generic;
@@ -20,6 +22,59 @@ namespace SModule.Utils
                 singleton = new SUtils();
             }
             return singleton;
+        }
+        public static Boolean titleComparing(String firebaseTitle, String crawlTitle)
+        {
+            return crawlTitle.ToLower().Replace(" ", "").Contains(firebaseTitle.ToLower().Replace(" ",""));
+        }
+        public void initalFacebookCrawl()
+        {
+
+        }
+        public async System.Threading.Tasks.Task<Dictionary<String, ProductTrack>> getFirebase()
+        {
+            IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
+            var todo = new ProductTrack();
+            FirebaseResponse response = await client.GetAsync("products");
+            Dictionary<String, ProductTrack> dicResult = response.ResultAs<Dictionary<String, ProductTrack>>();
+            return dicResult;
+        }
+        public async void mapParseObject2FirebaseObject(PostDetailParsed parseObject, String trackedPlaced)
+        {
+            IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
+            Dictionary<String, ProductTrack> trackedProducts = await getFirebase();
+            foreach (ProductTrack trackProduct in trackedProducts.Values)
+            {
+                if (SUtils.titleComparing(trackProduct.title, parseObject.product) && trackProduct.updates.Values.Where(a => a.id == parseObject.id).Count() == 0)
+                {
+
+                    TrackedUpdate update = new TrackedUpdate();
+                    update.trackedPlaces = trackedPlaced;
+                    update.price = Double.Parse(parseObject.price);
+                    update.lastUpdate = DateTime.Now;
+                    update.id = parseObject.id;
+                    update.fullPicture = parseObject.fullPicture;
+                    update.description = parseObject.description;
+                    update.url = String.Format("http://www.facebook.com/{0}/posts/{1}", update.id.Split('_').FirstOrDefault(), update.id.Split('_').LastOrDefault());
+                    foreach (var trackedAttempt in trackProduct.trackedAttempts.Values)
+                    {
+                        if (SUtils.checkMatchRequirement(trackedAttempt, update))
+                        {
+                            SUtils.getInstance().SendNotification(trackedAttempt.id, "Your tracked matchhh !!!");
+                        }
+                    }
+                    List<TrackedUpdate> trackUpdates = trackProduct.updates.Values.ToList();
+                    trackUpdates.Add(update);
+                    trackUpdates.Sort((b, a) => (int)(a.price - b.price));
+                    Dictionary<String, TrackedUpdate> updatesDictionary = new Dictionary<string, TrackedUpdate>();
+                    foreach (var item in trackUpdates)
+                    {
+                        updatesDictionary.Add(item.id, item);
+                    }
+                    SetResponse setResponse = await client.SetAsync("products/" + trackedProducts.FirstOrDefault(x => x.Value == trackProduct).Key + "/updates", updatesDictionary);
+                    //PushResponse response = await client.PushAsync("products/" + trackedProducts.FirstOrDefault(x => x.Value == trackProduct).Key + "/updates", update);
+                }
+            }
         }
         public static Boolean checkMatchRequirement(TrackedAttempt trackAttempt, TrackedUpdate trackUpdate)
         {
@@ -43,7 +98,7 @@ namespace SModule.Utils
                 tRequest.Headers.Add(string.Format("Authorization: key={0}", FirebaseClientProvider.APIKey));
                 tRequest.Headers.Add(string.Format("Sender: id={0}", FirebaseClientProvider.SenderID));
 
-                string postData = "data.message=" + value + "&data.time=" + System.DateTime.Now.ToString() + "&registration_id=" + deviceId + "";
+                string postData = "data.message=" + value + "&data.title=" + System.DateTime.Now.ToString() + "&registration_id=" + deviceId + "";
 
                 Byte[] byteArray = Encoding.UTF8.GetBytes(postData);
                 tRequest.ContentLength = byteArray.Length;
