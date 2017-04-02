@@ -15,6 +15,7 @@ using System.Dynamic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Timers;
@@ -99,18 +100,12 @@ namespace SModule.Controllers
                 Trace.TraceError("Parse failed at:" + DateTime.Now);
             }
         }
-        public async System.Threading.Tasks.Task<String> testFirebase(String title)
+        public async System.Threading.Tasks.Task<String> createProduct(String title)
         {
             IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
             var todo = new ProductTrack();
             todo.title = title;
-            todo.trackedAttempts = new Dictionary<string, TrackedAttempt>();
-            TrackedAttempt trackAttempt = new TrackedAttempt();
-            trackAttempt.id = "DEVICE-UNIQUE-ID";
-            trackAttempt.price = 1600000;
-            todo.trackedAttempts.Add(DateTime.Now.ToShortDateString(), trackAttempt);
-            todo.tags = new List<string> { "apple", "iphone", "smartphone" };
-            trackAttempt.trackedPlaces = new List<string> { "FB-CHOTAINGHE", "FB-D2Q", "CHOTOT.VN" };
+            todo.trackedAttempts = new Dictionary<string, TrackedAttempt>();       
             PushResponse response = await client.PushAsync("products", todo);
             return response.Body;
         }
@@ -132,8 +127,79 @@ namespace SModule.Controllers
         }
         public ActionResult initalCrawl()
         {
-            CrawlFace("193618214469008", 5000);
+            foreach (var facebookpage in SUtils.getInstance().facebookPage)
+            {
+                CrawlFace(facebookpage.Key, facebookpage.Value);
+            }
+            
             return Redirect("/");
+        }
+        public async System.Threading.Tasks.Task<String> getProducts(String productName)
+        {
+            Dictionary<String, ProductTrack> trackedProducts = await SUtils.getInstance().getFirebase();
+            foreach (var item in trackedProducts.ToList())
+            {
+                
+                if (SUtils.titleComparing(item.Value.title, productName))
+                {
+                    return "{name:\"" + item.Key + "\"}";
+                }
+            }
+
+            //In case not found
+            String newProduct = await createProduct(productName);
+            foreach (var facebookPage in SUtils.getInstance().facebookPage)
+            {
+                crawlFaceOneTime(facebookPage.Key);
+            }
+            await updateChototAsync();
+            return newProduct;
+        }
+        public async System.Threading.Tasks.Task<ActionResult> searchProduct(String productName, ProductTrack productTrack)
+        {
+            ChototApiWrapper products = null;
+            HttpClient client = new HttpClient();
+            HttpResponseMessage response = await client.GetAsync(@"https://gateway.chotot.com/v1/public/ad-listing?region=13&cg=0&w=1&limit=20&o=0&st=a&q=" + productName.Replace(" ", "%20"));
+            if (response.IsSuccessStatusCode)
+            {
+                products = await response.Content.ReadAsAsync<ChototApiWrapper>();
+                foreach (var product in products.ads)
+                {
+                    PostDetailParsed productParsed = new PostDetailParsed();
+                    productParsed.fullPicture = product.image;
+                    productParsed.price = product.price + "";
+                    productParsed.location = product.regionName;
+                    productParsed.id = product.adId + "";
+                    productParsed.product = productName;
+                    productParsed.description = product.subject;
+                    SUtils.getInstance().mapParseObject2FirebaseObject(productParsed, "CT");
+                }
+            }
+            return Json(products.ads, JsonRequestBehavior.AllowGet);
+        }
+        public async System.Threading.Tasks.Task<String> updateChototAsync()
+        {
+            Dictionary<String, ProductTrack> trackedProducts = await SUtils.getInstance().getFirebase();
+            foreach (var product in trackedProducts.Values)
+            {
+                await searchProduct(product.title, product);
+            }
+            return "Done";
+        }
+        public ActionResult crawlChotot(int interval)
+        {
+            ViewBag.Title = "Crawling ...";
+            var timer = new System.Threading.Timer(async (e) =>
+            {
+                await updateChototAsync();
+            }, null, 0, interval == 0 ? 60 * 1000 : interval);
+            PageTimer.setTimer(timer, "CT");
+            return Json(PageTimer.getAllCrawlingPage(), JsonRequestBehavior.AllowGet);
+        }
+        public ActionResult stopCrawlChotot()
+        {
+            PageTimer.stopTimer("CT");
+            return Json(PageTimer.getAllCrawlingPage(), JsonRequestBehavior.AllowGet);
         }
         //public async System.Threading.Tasks.Task<String> setFirebase()
         //{
@@ -146,6 +212,6 @@ namespace SModule.Controllers
         //    SetResponse response = await client.SetAsync("products", todo);
         //    return response.Body;
         //}
-       
+
     }
 }

@@ -14,12 +14,15 @@ namespace SModule.Utils
 {
     public class SUtils
     {
+        public List<KeyValuePair<String,int>> facebookPage = new List<KeyValuePair<String,int>>();
         private static SUtils singleton;
         public static SUtils getInstance()
         {
             if (singleton == null)
             {
                 singleton = new SUtils();
+                singleton.facebookPage.Add(new KeyValuePair<string, int> ("193618214469008", 5000));
+                singleton.facebookPage.Add(new KeyValuePair<string, int>("841457799229902", 60000));
             }
             return singleton;
         }
