@@ -31,6 +31,7 @@ namespace SModule.Models
         public String fullPicture { get; set; }
         public String permalinkUrl { get; set; }
         public String description { get; set; }
+        public String title { get; set; }
 
     }
 }

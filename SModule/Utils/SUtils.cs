@@ -33,10 +33,20 @@ namespace SModule.Utils
         }
         public async System.Threading.Tasks.Task<Dictionary<String, ProductTrack>> getFirebase()
         {
-            IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
-            var todo = new ProductTrack();
-            FirebaseResponse response = await client.GetAsync("products");
-            Dictionary<String, ProductTrack> dicResult = response.ResultAs<Dictionary<String, ProductTrack>>();
+            Dictionary<String, ProductTrack> dicResult;
+            try
+            {
+                IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
+                var todo = new ProductTrack();
+                FirebaseResponse response = await client.GetAsync("products");
+                dicResult = response.ResultAs<Dictionary<String, ProductTrack>>();
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+            
             return dicResult;
         }
         public async void mapParseObject2FirebaseObject(PostDetailParsed parseObject, String trackedPlaced)
