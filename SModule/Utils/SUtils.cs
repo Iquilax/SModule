@@ -52,6 +52,42 @@ namespace SModule.Utils
             
             return dicResult;
         }
+        public async System.Threading.Tasks.Task<int> getCurrentNotyCount(String token)
+        {
+            NotyCount notyCount;
+            try
+            {
+                IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
+                FirebaseResponse response = await client.GetAsync("products/noties/"+token);
+                notyCount = response.ResultAs<NotyCount>();
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+
+            return notyCount.count;
+        }
+        public async System.Threading.Tasks.Task<int> modifyCurrentNotyCount(String token, int modifyValue)
+        {
+            NotyCount notyCount = new NotyCount();
+            notyCount.count = modifyValue;
+            try
+            {
+                IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
+            
+                FirebaseResponse response = await client.SetAsync("products/noties/" + token,notyCount);
+                notyCount = response.ResultAs<NotyCount>();
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+
+            return notyCount.count;
+        }
         public async void mapParseObject2FirebaseObject(PostDetailParsed parseObject, String trackedPlaced)
         {
             IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
@@ -73,7 +109,10 @@ namespace SModule.Utils
                     {
                         if (SUtils.checkMatchRequirement(trackedAttempt, update))
                         {
-                            SUtils.getInstance().SendNotification(trackedAttempt.id, "Your tracked matchhh !!!");
+                            int notyCount = await getCurrentNotyCount(trackedAttempt.id);
+                            notyCount++;
+                            await modifyCurrentNotyCount(trackedAttempt.id, notyCount);
+                            SUtils.getInstance().SendNotification(trackedAttempt.id, String.Format("{0} is new sell at {1}₫", trackProduct.title, update.price), notyCount);
                         }
                     }
                     List<TrackedUpdate> trackUpdates = trackProduct.updates.Values.ToList();
@@ -94,7 +133,7 @@ namespace SModule.Utils
             Boolean result = trackUpdate.price <= trackAttempt.price;
             return result;
         }
-        public AndroidFCMPushNotificationStatus SendNotification(string deviceId, string message)
+        public AndroidFCMPushNotificationStatus SendNotification(string deviceId, string message, int notyCount)
         {
             AndroidFCMPushNotificationStatus result = new AndroidFCMPushNotificationStatus();
 
@@ -111,7 +150,7 @@ namespace SModule.Utils
                 tRequest.Headers.Add(string.Format("Authorization: key={0}", FirebaseClientProvider.APIKey));
                 tRequest.Headers.Add(string.Format("Sender: id={0}", FirebaseClientProvider.SenderID));
 
-                string postData = "data.message=" + value + "&data.title=" + System.DateTime.Now.ToString() + "&registration_id=" + deviceId + "";
+                string postData = "data.message=" + value + "&data.notyCount=" + notyCount + "&registration_id=" + deviceId + "";
 
                 Byte[] byteArray = Encoding.UTF8.GetBytes(postData);
                 tRequest.ContentLength = byteArray.Length;

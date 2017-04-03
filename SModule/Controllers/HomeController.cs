@@ -122,7 +122,7 @@ namespace SModule.Controllers
         }
         public ActionResult sendNotify(string receiverId, string message)
         {
-            var result = SUtils.getInstance().SendNotification(@"e-8_lOed5NM:APA91bHrKdqQjqM0VorVAs35V1Tp0Xxw-t05oOeAQXjiD5HSnTgx_10OUdw5RB3r4FApwKXwU_oHc_gEt7c9PijkFf3NZkg6ve9GIrYkhDDWDeNvsWOPWtoY3XSSB9yzxJ9FdMBHdPtn", message);
+            var result = SUtils.getInstance().SendNotification(@"e-8_lOed5NM:APA91bHrKdqQjqM0VorVAs35V1Tp0Xxw-t05oOeAQXjiD5HSnTgx_10OUdw5RB3r4FApwKXwU_oHc_gEt7c9PijkFf3NZkg6ve9GIrYkhDDWDeNvsWOPWtoY3XSSB9yzxJ9FdMBHdPtn", message, 3);
             return Json(result.Response, JsonRequestBehavior.AllowGet);
         }
         public ActionResult initalCrawl()

@@ -24,4 +24,8 @@ namespace SModule.Models
             set;
         }
     }
+    public class NotyCount
+    {
+        public int count { get; set; }
+    }
 }
