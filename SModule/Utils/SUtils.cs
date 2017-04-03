@@ -105,6 +105,10 @@ namespace SModule.Utils
                     update.fullPicture = parseObject.fullPicture;
                     update.description = parseObject.description;
                     update.url = String.Format("http://www.facebook.com/{0}/posts/{1}", update.id.Split('_').FirstOrDefault(), update.id.Split('_').LastOrDefault());
+                    if (trackedPlaced == "CT")
+                    {
+                        update.url = "https://www.chotot.com/toan-quoc/mua-ban?page=1&sp=0&suggested=1&q=" + trackProduct.title;
+                    }
                     foreach (var trackedAttempt in trackProduct.trackedAttempts.Values)
                     {
                         if (SUtils.checkMatchRequirement(trackedAttempt, update))
