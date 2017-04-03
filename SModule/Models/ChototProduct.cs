@@ -22,6 +22,8 @@ namespace SModule.Models
         public double price { get; set; }
         public String image { get; set; }
 		public String url { get; set; }
+        [JsonProperty("area_id")]
+        public String areaId { get; set; }
     }
     public class ChototApiWrapper
     {
