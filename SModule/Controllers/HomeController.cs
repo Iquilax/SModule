@@ -134,7 +134,7 @@ namespace SModule.Controllers
             
             return Redirect("/");
         }
-        public async System.Threading.Tasks.Task<String> getProducts(String productName)
+        public async System.Threading.Tasks.Task<ActionResult> getProducts(String productName)
         {
             Dictionary<String, ProductTrack> trackedProducts = await SUtils.getInstance().getFirebase();
             foreach (var item in trackedProducts.ToList())
@@ -142,7 +142,7 @@ namespace SModule.Controllers
                 
                 if (SUtils.titleComparing(item.Value.title, productName))
                 {
-                    return "{name:\"" + item.Key + "\"}";
+                    return Json(new {name =  item.Key}, JsonRequestBehavior.AllowGet);
                 }
             }
 
@@ -153,7 +153,7 @@ namespace SModule.Controllers
                 crawlFaceOneTime(facebookPage.Key);
             }
             await updateChototAsync();
-            return newProduct;
+            return Content(newProduct, "application/json"); ;
         }
         public async System.Threading.Tasks.Task<ActionResult> searchProduct(String productName, ProductTrack productTrack)
         {
