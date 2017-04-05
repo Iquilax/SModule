@@ -37,9 +37,9 @@ namespace SModule.Controllers
         public ActionResult CrawlFace(String pageId, int crawlInterval)
         {
             ViewBag.Title = "Crawling ...";
-            var timer = new System.Threading.Timer((e) =>
+            var timer = new System.Threading.Timer(async(e) =>
             {
-                crawlFaceOneTime(pageId);
+                await crawlFaceOneTimeAsync(pageId);
             }, null, 0, crawlInterval == 0 ? 60 * 1000 : crawlInterval);
             PageTimer.setTimer(timer, pageId);
             return Json(PageTimer.getAllCrawlingPage(), JsonRequestBehavior.AllowGet);
@@ -52,11 +52,11 @@ namespace SModule.Controllers
         }
 
 
-        private async void crawlFaceOneTime(String pageId)
+        private async System.Threading.Tasks.Task<String> crawlFaceOneTimeAsync(String pageId)
         {
             try
             {
-                
+
                 var fb = FacebookClientProvider.getFacebookClient();
                 dynamic parameters = new ExpandoObject();
                 Facebook.JsonObject fbResult = fb.Get(pageId + "/feed?fields=full_picture,permalink_url,message,id,place,created_time,updated_time", parameters);
@@ -91,6 +91,10 @@ namespace SModule.Controllers
                     }
                     parseObject.id = rawPost.id;
                     parseObject.description = splitedString.FirstOrDefault();
+                    if (splitedString.Count >= 3)
+                    {
+                        parseObject.description = splitedString.LastOrDefault();
+                    }
                     SUtils.getInstance().mapParseObject2FirebaseObject(parseObject, "FB-" + pageId);
                     resultData.Add(parseObject);
                 }
@@ -99,6 +103,7 @@ namespace SModule.Controllers
             {
                 Trace.TraceError("Parse failed at:" + DateTime.Now);
             }
+            return "done";
         }
         public async System.Threading.Tasks.Task<String> createProduct(String title)
         {
@@ -137,22 +142,37 @@ namespace SModule.Controllers
         public async System.Threading.Tasks.Task<ActionResult> getProducts(String productName)
         {
             Dictionary<String, ProductTrack> trackedProducts = await SUtils.getInstance().getFirebase();
-            foreach (var item in trackedProducts.ToList())
+            if (trackedProducts != null)
             {
-                
-                if (SUtils.titleComparing(item.Value.title, productName))
+                foreach (var item in trackedProducts.ToList())
                 {
-                    return Json(new {name =  item.Key}, JsonRequestBehavior.AllowGet);
+
+                    if (SUtils.titleComparing(item.Value.title, productName))
+                    {
+                        return Json(new { name = item.Key }, JsonRequestBehavior.AllowGet);
+                    }
                 }
             }
-
-            //In case not found
+           
             String newProduct = await createProduct(productName);
-            foreach (var facebookPage in SUtils.getInstance().facebookPage)
+            try
             {
-                crawlFaceOneTime(facebookPage.Key);
+                foreach (var facebookPage in SUtils.getInstance().facebookPage)
+                {
+                    String faceRes = await crawlFaceOneTimeAsync(facebookPage.Key);
+                }
+                String chototResult = await updateChototAsync();
             }
-            await updateChototAsync();
+            catch (Exception)
+            {
+                //Do nothing
+            }
+            //In case not found
+
+            if (newProduct == null)
+            {
+                return new HttpStatusCodeResult(500);
+            }
             return Content(newProduct, "application/json"); ;
         }
         public async System.Threading.Tasks.Task<ActionResult> searchProduct(String productName, ProductTrack productTrack)

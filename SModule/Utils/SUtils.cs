@@ -28,6 +28,10 @@ namespace SModule.Utils
         }
         public static Boolean titleComparing(String firebaseTitle, String crawlTitle)
         {
+            if (firebaseTitle == null || crawlTitle == null)
+            {
+                return false;
+            }
             return crawlTitle.ToLower().Replace(" ", "").Contains(firebaseTitle.ToLower().Replace(" ",""));
         }
         public void initalFacebookCrawl()
@@ -54,19 +58,21 @@ namespace SModule.Utils
         }
         public async System.Threading.Tasks.Task<int> getCurrentNotyCount(String token)
         {
-            NotyCount notyCount;
+            NotyCount notyCount = null;
             try
             {
                 IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
-                FirebaseResponse response = await client.GetAsync("products/noties/"+token);
+                FirebaseResponse response = await client.GetAsync("noties/"+token);
                 notyCount = response.ResultAs<NotyCount>();
             }
             catch (Exception)
             {
-
-                throw;
+                
             }
-
+            if (notyCount == null)
+            {
+                return 0;
+            }
             return notyCount.count;
         }
         public async System.Threading.Tasks.Task<int> modifyCurrentNotyCount(String token, int modifyValue)
@@ -77,7 +83,7 @@ namespace SModule.Utils
             {
                 IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
             
-                FirebaseResponse response = await client.SetAsync("products/noties/" + token,notyCount);
+                FirebaseResponse response = await client.SetAsync("noties/" + token,notyCount);
                 notyCount = response.ResultAs<NotyCount>();
             }
             catch (Exception)
