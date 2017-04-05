@@ -190,7 +190,7 @@ namespace SModule.Controllers
                     productParsed.price = product.price + "";
                     productParsed.location = product.regionName;
                     productParsed.id = product.adId + "";
-                    productParsed.product = productName;
+                    productParsed.product = product.subject;
                     productParsed.description = product.subject;
                     SUtils.getInstance().mapParseObject2FirebaseObject(productParsed, "CT");
                 }

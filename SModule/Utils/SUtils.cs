@@ -14,14 +14,14 @@ namespace SModule.Utils
 {
     public class SUtils
     {
-        public List<KeyValuePair<String,int>> facebookPage = new List<KeyValuePair<String,int>>();
+        public List<KeyValuePair<String, int>> facebookPage = new List<KeyValuePair<String, int>>();
         private static SUtils singleton;
         public static SUtils getInstance()
         {
             if (singleton == null)
             {
                 singleton = new SUtils();
-                singleton.facebookPage.Add(new KeyValuePair<string, int> ("193618214469008", 5000));
+                singleton.facebookPage.Add(new KeyValuePair<string, int>("193618214469008", 5000));
                 singleton.facebookPage.Add(new KeyValuePair<string, int>("841457799229902", 60000));
             }
             return singleton;
@@ -32,7 +32,7 @@ namespace SModule.Utils
             {
                 return false;
             }
-            return crawlTitle.ToLower().Replace(" ", "").Contains(firebaseTitle.ToLower().Replace(" ",""));
+            return crawlTitle.ToLower().Replace(" ", "").Contains(firebaseTitle.ToLower().Replace(" ", ""));
         }
         public void initalFacebookCrawl()
         {
@@ -53,7 +53,7 @@ namespace SModule.Utils
 
                 throw;
             }
-            
+
             return dicResult;
         }
         public async System.Threading.Tasks.Task<int> getCurrentNotyCount(String token)
@@ -62,12 +62,12 @@ namespace SModule.Utils
             try
             {
                 IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
-                FirebaseResponse response = await client.GetAsync("noties/"+token);
+                FirebaseResponse response = await client.GetAsync("noties/" + token);
                 notyCount = response.ResultAs<NotyCount>();
             }
             catch (Exception)
             {
-                
+
             }
             if (notyCount == null)
             {
@@ -82,8 +82,8 @@ namespace SModule.Utils
             try
             {
                 IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
-            
-                FirebaseResponse response = await client.SetAsync("noties/" + token,notyCount);
+
+                FirebaseResponse response = await client.SetAsync("noties/" + token, notyCount);
                 notyCount = response.ResultAs<NotyCount>();
             }
             catch (Exception)
@@ -96,47 +96,67 @@ namespace SModule.Utils
         }
         public async void mapParseObject2FirebaseObject(PostDetailParsed parseObject, String trackedPlaced)
         {
-            IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
-            Dictionary<String, ProductTrack> trackedProducts = await getFirebase();
-            foreach (KeyValuePair<String, ProductTrack> trackProductPair in trackedProducts.ToList())
+            try
             {
-                ProductTrack trackProduct = trackProductPair.Value;
-                if (SUtils.titleComparing(trackProduct.title, parseObject.product) && trackProduct.updates.Values.Where(a => a.id == parseObject.id).Count() == 0)
+                IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
+                Dictionary<String, ProductTrack> trackedProducts = await getFirebase();
+                foreach (KeyValuePair<String, ProductTrack> trackProductPair in trackedProducts.ToList())
                 {
+                    ProductTrack trackProduct = trackProductPair.Value;
+                    if (SUtils.titleComparing(trackProduct.title, parseObject.product) && trackProduct.updates.Values.Where(a => a.id == parseObject.id).Count() == 0)
+                    {
 
-                    TrackedUpdate update = new TrackedUpdate();
-                    update.trackedPlaces = trackedPlaced;
-                    update.price = Double.Parse(parseObject.price);
-                    update.lastUpdate = DateTime.Now;
-                    update.id = parseObject.id;
-                    update.fullPicture = parseObject.fullPicture;
-                    update.description = parseObject.description;
-                    update.url = String.Format("http://www.facebook.com/{0}/posts/{1}", update.id.Split('_').FirstOrDefault(), update.id.Split('_').LastOrDefault());
-                    if (trackedPlaced == "CT")
-                    {
-                        update.url = "https://www.chotot.com/toan-quoc/mua-ban?page=1&sp=0&suggested=1&q=" + trackProduct.title;
-                    }
-                    foreach (var trackedAttempt in trackProduct.trackedAttempts.Values)
-                    {
-                        if (SUtils.checkMatchRequirement(trackedAttempt, update))
+                        TrackedUpdate update = new TrackedUpdate();
+                        update.trackedPlaces = trackedPlaced;
+                        update.price = Double.Parse(parseObject.price);
+                        update.lastUpdate = DateTime.Now;
+                        update.id = parseObject.id;
+                        update.fullPicture = parseObject.fullPicture;
+                        update.description = parseObject.description;
+                        update.url = String.Format("http://www.facebook.com/{0}/posts/{1}", update.id.Split('_').FirstOrDefault(), update.id.Split('_').LastOrDefault());
+                        if (trackedPlaced == "CT")
                         {
-                            int notyCount = await getCurrentNotyCount(trackedAttempt.id);
-                            notyCount++;
-                            await modifyCurrentNotyCount(trackedAttempt.id, notyCount);
-                            SUtils.getInstance().SendNotification(trackedAttempt.id, String.Format("{0} is new sell at {1}₫", trackProduct.title, update.price), notyCount, trackProductPair.Key);
+                            update.url = "https://www.chotot.com/toan-quoc/mua-ban?page=1&sp=0&suggested=1&q=" + trackProduct.title;
                         }
+                        foreach (var trackedAttempt in trackProduct.trackedAttempts.Values)
+                        {
+                            if (SUtils.checkMatchRequirement(trackedAttempt, update))
+                            {
+                                int notyCount = await getCurrentNotyCount(trackedAttempt.id);
+                                notyCount++;
+                                await modifyCurrentNotyCount(trackedAttempt.id, notyCount);
+                                SUtils.getInstance().SendNotification(trackedAttempt.id, String.Format("{0} is new sell at {1}₫", trackProduct.title, update.price), notyCount, trackProductPair.Key);
+                            }
+                        }
+                        List<TrackedUpdate> trackUpdates = trackProduct.updates.Values.ToList();
+                        trackUpdates.Add(update);
+                        trackUpdates.Sort((b, a) => (int)(a.price - b.price));
+                        Dictionary<String, TrackedUpdate> updatesDictionary = new Dictionary<string, TrackedUpdate>();
+                        int idCount = 0;
+                        foreach (var item in trackUpdates)
+                        {
+                            idCount++;
+                            updatesDictionary.Add(idCount.ToString().PadLeft(4, '0') + item.id, item);
+                        }
+                        if (updatesDictionary.Count != trackProduct.updates.Count)
+                        {
+                            try
+                            {
+                                SetResponse setResponse = await client.SetAsync("products/" + trackedProducts.FirstOrDefault(x => x.Value == trackProduct).Key + "/updates", updatesDictionary);
+                            }
+
+                            catch (Exception)
+                            {
+                                throw;
+                            }
+                        }
+                        //PushResponse response = await client.PushAsync("products/" + trackedProducts.FirstOrDefault(x => x.Value == trackProduct).Key + "/updates", update);
                     }
-                    List<TrackedUpdate> trackUpdates = trackProduct.updates.Values.ToList();
-                    trackUpdates.Add(update);
-                    trackUpdates.Sort((b, a) => (int)(a.price - b.price));
-                    Dictionary<String, TrackedUpdate> updatesDictionary = new Dictionary<string, TrackedUpdate>();
-                    foreach (var item in trackUpdates)
-                    {
-                        updatesDictionary.Add(item.id, item);
-                    }
-                    SetResponse setResponse = await client.SetAsync("products/" + trackedProducts.FirstOrDefault(x => x.Value == trackProduct).Key + "/updates", updatesDictionary);
-                    //PushResponse response = await client.PushAsync("products/" + trackedProducts.FirstOrDefault(x => x.Value == trackProduct).Key + "/updates", update);
                 }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
             }
         }
         public static Boolean checkMatchRequirement(TrackedAttempt trackAttempt, TrackedUpdate trackUpdate)
@@ -161,7 +181,7 @@ namespace SModule.Utils
                 tRequest.Headers.Add(string.Format("Authorization: key={0}", FirebaseClientProvider.APIKey));
                 tRequest.Headers.Add(string.Format("Sender: id={0}", FirebaseClientProvider.SenderID));
 
-                string postData = "data.message=" + value + "&data.notyCount=" + notyCount + "&data.productId="+ productId + "&registration_id=" + deviceId + "";
+                string postData = "data.message=" + value + "&data.notyCount=" + notyCount + "&data.productId=" + productId + "&registration_id=" + deviceId + "&notification.click_action=OPEN_ACTIVITY";
 
                 Byte[] byteArray = Encoding.UTF8.GetBytes(postData);
                 tRequest.ContentLength = byteArray.Length;
