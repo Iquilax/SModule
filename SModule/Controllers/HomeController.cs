@@ -211,7 +211,15 @@ namespace SModule.Controllers
             ViewBag.Title = "Crawling ...";
             var timer = new System.Threading.Timer(async (e) =>
             {
-                await updateChototAsync();
+                try
+                {
+                    await updateChototAsync();
+                }
+                catch (Exception)
+                {
+
+                }
+                
             }, null, 0, interval == 0 ? 60 * 1000 : interval);
             PageTimer.setTimer(timer, "CT");
             return Json(PageTimer.getAllCrawlingPage(), JsonRequestBehavior.AllowGet);
