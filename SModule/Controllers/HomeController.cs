@@ -125,9 +125,9 @@ namespace SModule.Controllers
             SetResponse response = await client.SetAsync("locations", data);
             return response.Body;
         }
-        public ActionResult sendNotify(string receiverId, string message, int count)
+        public ActionResult sendNotify(string receiverId, string message, int count, String productId)
         {
-            var result = SUtils.getInstance().SendNotification(receiverId, message, count);
+            var result = SUtils.getInstance().SendNotification(receiverId, message, count, productId);
             return Json(result.Response, JsonRequestBehavior.AllowGet);
         }
         public ActionResult initalCrawl()

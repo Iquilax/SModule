@@ -98,8 +98,9 @@ namespace SModule.Utils
         {
             IFirebaseClient client = FirebaseClientProvider.getFirebaseClient();
             Dictionary<String, ProductTrack> trackedProducts = await getFirebase();
-            foreach (ProductTrack trackProduct in trackedProducts.Values)
+            foreach (KeyValuePair<String, ProductTrack> trackProductPair in trackedProducts.ToList())
             {
+                ProductTrack trackProduct = trackProductPair.Value;
                 if (SUtils.titleComparing(trackProduct.title, parseObject.product) && trackProduct.updates.Values.Where(a => a.id == parseObject.id).Count() == 0)
                 {
 
@@ -122,7 +123,7 @@ namespace SModule.Utils
                             int notyCount = await getCurrentNotyCount(trackedAttempt.id);
                             notyCount++;
                             await modifyCurrentNotyCount(trackedAttempt.id, notyCount);
-                            SUtils.getInstance().SendNotification(trackedAttempt.id, String.Format("{0} is new sell at {1}₫", trackProduct.title, update.price), notyCount);
+                            SUtils.getInstance().SendNotification(trackedAttempt.id, String.Format("{0} is new sell at {1}₫", trackProduct.title, update.price), notyCount, trackProductPair.Key);
                         }
                     }
                     List<TrackedUpdate> trackUpdates = trackProduct.updates.Values.ToList();
@@ -143,7 +144,7 @@ namespace SModule.Utils
             Boolean result = trackUpdate.price <= trackAttempt.price;
             return result;
         }
-        public AndroidFCMPushNotificationStatus SendNotification(string deviceId, string message, int notyCount)
+        public AndroidFCMPushNotificationStatus SendNotification(string deviceId, string message, int notyCount, String productId)
         {
             AndroidFCMPushNotificationStatus result = new AndroidFCMPushNotificationStatus();
 
@@ -160,7 +161,7 @@ namespace SModule.Utils
                 tRequest.Headers.Add(string.Format("Authorization: key={0}", FirebaseClientProvider.APIKey));
                 tRequest.Headers.Add(string.Format("Sender: id={0}", FirebaseClientProvider.SenderID));
 
-                string postData = "data.message=" + value + "&data.notyCount=" + notyCount + "&registration_id=" + deviceId + "";
+                string postData = "data.message=" + value + "&data.notyCount=" + notyCount + "&data.productId="+ productId + "&registration_id=" + deviceId + "";
 
                 Byte[] byteArray = Encoding.UTF8.GetBytes(postData);
                 tRequest.ContentLength = byteArray.Length;
