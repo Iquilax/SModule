@@ -129,6 +129,21 @@ namespace SModule.Utils
                             }
                         }
                         List<TrackedUpdate> trackUpdates = trackProduct.updates.Values.ToList();
+                        if (update.trackedPlaces == "CT")
+                        {
+                            update.trackPlaceName = "Chotot";
+                        } else
+                        if (update.trackedPlaces == "FB-193618214469008")
+                        {
+                            update.trackPlaceName = "Phone and Gadget";
+                        } else
+                        if (update.trackedPlaces == "FB-841457799229902")
+                        {
+                            update.trackPlaceName = "Chợ tai nghe 2hand";
+                        } else
+                        {
+                            update.trackPlaceName = "Facebook marketplace";
+                        }
                         trackUpdates.Add(update);
                         trackUpdates.Sort((a,b) => (int)(a.price - b.price));
                         Dictionary<String, TrackedUpdate> updatesDictionary = new Dictionary<string, TrackedUpdate>();
