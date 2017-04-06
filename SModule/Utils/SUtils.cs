@@ -130,7 +130,7 @@ namespace SModule.Utils
                         }
                         List<TrackedUpdate> trackUpdates = trackProduct.updates.Values.ToList();
                         trackUpdates.Add(update);
-                        trackUpdates.Sort((b, a) => (int)(a.price - b.price));
+                        trackUpdates.Sort((a,b) => (int)(a.price - b.price));
                         Dictionary<String, TrackedUpdate> updatesDictionary = new Dictionary<string, TrackedUpdate>();
                         int idCount = 0;
                         foreach (var item in trackUpdates)
