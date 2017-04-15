@@ -113,7 +113,7 @@ namespace SModule.Utils
                         update.id = parseObject.id;
                         update.fullPicture = parseObject.fullPicture;
                         update.description = parseObject.description;
-                        update.url = String.Format("http://www.facebook.com/{0}/posts/{1}", update.id.Split('_').FirstOrDefault(), update.id.Split('_').LastOrDefault());
+                        update.url = parseObject.permalinkUrl;
                         if (trackedPlaced == "CT")
                         {
                             update.url = "https://www.chotot.com/toan-quoc/mua-ban?page=1&sp=0&suggested=1&q=" + trackProduct.title;
@@ -129,6 +129,21 @@ namespace SModule.Utils
                             }
                         }
                         List<TrackedUpdate> trackUpdates = trackProduct.updates.Values.ToList();
+                        if (update.trackedPlaces == "CT")
+                        {
+                            update.trackPlaceName = "Chotot";
+                        } else
+                        if (update.trackedPlaces == "FB-193618214469008")
+                        {
+                            update.trackPlaceName = "Phone and Gadget";
+                        } else
+                        if (update.trackedPlaces == "FB-841457799229902")
+                        {
+                            update.trackPlaceName = "Chợ tai nghe 2hand";
+                        } else
+                        {
+                            update.trackPlaceName = "Facebook marketplace";
+                        }
                         trackUpdates.Add(update);
                         trackUpdates.Sort((a,b) => (int)(a.price - b.price));
                         Dictionary<String, TrackedUpdate> updatesDictionary = new Dictionary<string, TrackedUpdate>();

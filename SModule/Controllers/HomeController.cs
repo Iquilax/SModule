@@ -68,6 +68,7 @@ namespace SModule.Controllers
                 foreach (var rawPost in groupPosts)
                 {
                     var parseObject = new PostDetailParsed();
+                    parseObject.permalinkUrl = rawPost.permalinkUrl;
                     String msg = rawPost.message;
                     if (msg == null)
                     {

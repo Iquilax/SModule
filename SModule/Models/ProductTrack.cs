@@ -33,5 +33,6 @@ namespace SModule.Models
         public DateTime lastUpdate { get; set; }
         public String id { get; set; }
         public String fullPicture { get; set; }
+        public String trackPlaceName { get; set; }
     }
 }
