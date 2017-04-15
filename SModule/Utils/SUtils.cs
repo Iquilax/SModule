@@ -125,7 +125,7 @@ namespace SModule.Utils
                                 int notyCount = await getCurrentNotyCount(trackedAttempt.id);
                                 notyCount++;
                                 await modifyCurrentNotyCount(trackedAttempt.id, notyCount);
-                                SUtils.getInstance().SendNotification(trackedAttempt.id, String.Format("{0} is new sell at {1}₫", trackProduct.title, update.price), notyCount, trackProductPair.Key);
+                                SUtils.getInstance().SendNotification(trackedAttempt.id, String.Format("{0} is selling at {1}₫. Get it now!", trackProduct.title, update.price), notyCount, trackProductPair.Key);
                             }
                         }
                         List<TrackedUpdate> trackUpdates = trackProduct.updates.Values.ToList();
