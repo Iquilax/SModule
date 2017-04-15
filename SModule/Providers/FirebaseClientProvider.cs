@@ -10,10 +10,10 @@ namespace SModule.Providers
 {
     public static class FirebaseClientProvider
     {
-        public static String APIKey = "AIzaSyDbMxSJtLlpRdr9iwg0UQYeiIIoG_3yFd4";
-        public static String AuthSecret = "BBPhctSv5RCfbrPveFBJVELilPD3A1GRz9cHJpBP";
-        public static String BasePath = "https://trakky-d5c00.firebaseio.com";
-        public static String SenderID = "907201675905";
+        public static String APIKey = "AIzaSyCpxJ_gxjyoYIjQ5yA_CY-DkifK0mKV4Bk";
+        public static String AuthSecret = "4T8aj25IqmeOrcwGrXw6RSJjVbLQAFuPt3oPwBvM";
+        public static String BasePath = "https://awesomeproject-64f67.firebaseio.com";
+        public static String SenderID = "689312660493";
         private static IFirebaseClient firebaseClient;
         public static IFirebaseClient getFirebaseClient()
         {
